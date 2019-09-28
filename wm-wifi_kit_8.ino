@@ -18,8 +18,6 @@ void setup_wifi() {
     Serial.print(".");
   }
 
-  randomSeed(micros());
-
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
