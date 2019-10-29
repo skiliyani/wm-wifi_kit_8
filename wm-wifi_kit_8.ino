@@ -97,8 +97,6 @@ void display_ago() {
   u8g2.setFont(u8g2_font_mercutio_basic_nbp_tf);
   u8g2.drawStr(94,12,last_reading_str);
   u8g2.drawStr(94,26,"ago");
-  
-  mqtt_last_message_millis = current_millis;
 }
 
 void setup_wifi() {
