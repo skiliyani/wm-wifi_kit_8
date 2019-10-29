@@ -80,7 +80,7 @@ void display_reading() {
 }
 
 void display_ago() {
-  if (reading == -99) {
+  if (mqtt_last_message_millis == 0) {
     return;
   }
   
@@ -137,6 +137,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   String message = String((char *) payload);
   if (message.indexOf(',') >= 0) {
     reading = message.substring(0, message.indexOf(',')).toInt();
+    //if(mqtt_last_message_millis == 0) // for testing ago
     mqtt_last_message_millis = millis();
   }
 }
