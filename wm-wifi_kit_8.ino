@@ -22,9 +22,11 @@ U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-unsigned long previousMillis = 0;
+unsigned long mqtt_last_conn_millis = 0;
+unsigned long mqtt_last_message_millis = 0;
 signed int reading = -99;
-char msg[5];
+char water_level_str[5];
+char last_reading_str[10];
 
 void draw_symbol(uint8_t symbol, uint8_t color) {
   switch(symbol) {
@@ -51,7 +53,7 @@ void draw_symbol(uint8_t symbol, uint8_t color) {
 
 void display(uint8_t symbol) {
   draw_symbol(symbol, 1);
-  u8g2.sendBuffer();
+  //u8g2.sendBuffer();
 }
 
 void blink(uint8_t symbol) {
@@ -61,20 +63,42 @@ void blink(uint8_t symbol) {
 
 void clear(uint8_t symbol) {
   draw_symbol(symbol, 0);
-  u8g2.sendBuffer();
+  //u8g2.sendBuffer();
 }
 
-void display_reading(int reading) {
-  sprintf(msg,"%3d", reading); 
-    
+void display_reading() {
+  if(reading == -99 ) {
+    sprintf(water_level_str,"%s", "--");
+  } else {
+    sprintf(water_level_str,"%d%%", reading); 
+  }
   u8g2.setFontMode(0);
   u8g2.setDrawColor(1);
   //u8g2.setFont(u8g2_font_logisoso28_tr);
-  u8g2.setFont(u8g2_font_inb24_mr);
-  u8g2.drawStr(u8g2.getDisplayWidth() - (u8g2.getMaxCharWidth()*3) - 14,u8g2.getDisplayHeight()-(u8g2.getMaxCharHeight()/4),msg);
-  u8g2.setFont(u8g2_font_gb24st_t_1);
-  u8g2.drawStr(115,13,"%");
-  u8g2.sendBuffer();  
+  u8g2.setFont(u8g2_font_logisoso24_tr);
+  u8g2.drawStr(18,26,water_level_str);
+}
+
+void display_ago() {
+  if (reading == -99) {
+    return;
+  }
+  
+  unsigned long current_millis = millis();
+  int secs = (current_millis - mqtt_last_message_millis) / 1000;
+  int mins = max(60, secs) / 60;
+
+  if(mins >= 60) {
+    sprintf(last_reading_str,"%d %s", (mins / 60), "hr"); 
+  } else {
+    sprintf(last_reading_str,"%d %s", mins, "min"); 
+  }
+  
+  u8g2.setFont(u8g2_font_mercutio_basic_nbp_tf);
+  u8g2.drawStr(94,12,last_reading_str);
+  u8g2.drawStr(94,26,"ago");
+  
+  mqtt_last_message_millis = current_millis;
 }
 
 void setup_wifi() {
@@ -115,6 +139,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   String message = String((char *) payload);
   if (message.indexOf(',') >= 0) {
     reading = message.substring(0, message.indexOf(',')).toInt();
+    mqtt_last_message_millis = millis();
   }
 }
 
@@ -125,47 +150,6 @@ void setup_mqtt() {
   client.setCallback(callback);
 }
 
-void reconnect_() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-
-    unsigned long currentMillis = millis();
-    
-    if(WiFi.status() != WL_CONNECTED) {
-      blink(WIFI);
-      clear(MQTT);
-    } else {
-      display(WIFI);
-    }
-
-    // Wait 5 seconds before retrying
-    if(currentMillis - previousMillis >= 5000) {
-      Serial.print("Attempting MQTT connection...");
-      previousMillis = currentMillis;
-      
-      // Create a random client ID
-      String clientId = "ESP8266Client-";
-      clientId += String(random(0xffff), HEX);
-      // Attempt to connect
-      if (client.connect(clientId.c_str())) {
-        Serial.println("connected");
-        client.subscribe("home/water/level");
-        display(MQTT);
-      } else {
-        Serial.print("failed, rc=");
-        Serial.print(client.state());
-        Serial.println(" try again in 5 seconds");
-      }
-    }
-
-    if(!client.connected()) {
-      blink(MQTT);
-    }
-    delay(500);
-  }
-}
-
-
 void setup(void) {
   Serial.begin(115200);
   u8g2.begin();
@@ -173,10 +157,18 @@ void setup(void) {
   setup_mqtt();
 }
 
-void reconnect() {
-  unsigned long currentMillis = millis();
+void mood() {
+  u8g2.setFontMode(1);
+  u8g2.setDrawColor(1);
+  u8g2.setFont(u8g2_font_emoticons21_tr);
+  u8g2.drawGlyph(21+3, 21, 32);
+  //u8g2.sendBuffer();  
+}
 
-  if((WiFi.status() == WL_CONNECTED) && (currentMillis - previousMillis >= 5000)) {
+void reconnect() {
+  unsigned long current_millis = millis();
+
+  if((WiFi.status() == WL_CONNECTED) && (current_millis - mqtt_last_conn_millis >= 5000)) {
        
     Serial.print("Attempting MQTT connection...");
     
@@ -191,12 +183,14 @@ void reconnect() {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
-      previousMillis = currentMillis;
+      mqtt_last_conn_millis = current_millis;
     }
   }
 }
 
 void status() {
+    u8g2.clearBuffer();
+    
     if(WiFi.status() != WL_CONNECTED) {
       blink(WIFI);      
     } else {
@@ -208,10 +202,12 @@ void status() {
     } else {
       display(MQTT);
     }
+    
+    display_reading();
+    display_ago();
 
-    if(reading > -99 ) {
-      display_reading(reading);
-    }
+    //mood();
+    u8g2.sendBuffer(); 
 }
 
 void loop(void) {
