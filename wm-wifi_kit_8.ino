@@ -16,6 +16,8 @@
 const char* ssid = "SAYANI_IOT";//"VIVA-Router-ADV-LTE";
 const char* password = "00001111";//"VIVA770319";
 const char* mqtt_server = "192.168.8.10";
+const int min_distance = 14;
+const int max_distance = 77;
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
 
@@ -53,17 +55,15 @@ void draw_symbol(uint8_t symbol, uint8_t color) {
 
 void display(uint8_t symbol) {
   draw_symbol(symbol, 1);
-  //u8g2.sendBuffer();
 }
 
 void blink(uint8_t symbol) {
   draw_symbol(symbol, 2);
-  u8g2.sendBuffer();
+  u8g2.sendBuffer(); //immediately
 }
 
 void clear(uint8_t symbol) {
   draw_symbol(symbol, 0);
-  //u8g2.sendBuffer();
 }
 
 void display_reading() {
@@ -133,12 +133,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  // Message arrived [home/water/level] 97,1 minute ago
   String message = String((char *) payload);
-  if (message.indexOf(',') >= 0) {
-    reading = message.substring(0, message.indexOf(',')).toInt();
+
+  float distance = message.toFloat();
+  if (distance > 0) {
     //if(mqtt_last_message_millis == 0) // for testing ago
     mqtt_last_message_millis = millis();
+
+    int percentage = (distance - min_distance)/(max_distance - min_distance) * 100;
+
+    reading = 100 - max(0,min(100,percentage));
   }
 }
 
@@ -161,7 +165,6 @@ void mood() {
   u8g2.setDrawColor(1);
   u8g2.setFont(u8g2_font_emoticons21_tr);
   u8g2.drawGlyph(21+3, 21, 32);
-  //u8g2.sendBuffer();  
 }
 
 void reconnect() {
@@ -177,11 +180,12 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
-      client.subscribe("home/water/level");
+      client.subscribe("home/water/test");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
+      
       mqtt_last_conn_millis = current_millis;
     }
   }
@@ -190,22 +194,17 @@ void reconnect() {
 void status() {
     u8g2.clearBuffer();
     
-    if(WiFi.status() != WL_CONNECTED) {
-      blink(WIFI);      
-    } else {
+    if(WiFi.status() == WL_CONNECTED) {
       display(WIFI);
     }
   
-    if (!client.connected()) {
-      blink(MQTT);   
-    } else {
+    if (client.connected()) {
       display(MQTT);
     }
     
     display_reading();
     display_ago();
 
-    //mood();
     u8g2.sendBuffer(); 
 }
 
