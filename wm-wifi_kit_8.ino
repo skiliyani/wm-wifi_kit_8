@@ -97,7 +97,9 @@ void display_ago() {
   int secs = (current_millis - mqtt_last_message_millis) / 1000;
   int mins = max(60, secs) / 60;
 
-  if(mins >= 60) {
+  if(mins >= 1440) {
+    sprintf(last_reading_str,"%d %s", (mins / 1440), "day"); 
+  } else if(mins >= 60) {
     sprintf(last_reading_str,"%d %s", (mins / 60), "hr"); 
   } else {
     sprintf(last_reading_str,"%d %s", mins, "min"); 
