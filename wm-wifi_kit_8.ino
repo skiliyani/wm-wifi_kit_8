@@ -14,15 +14,15 @@
 #define WATER 2
 
 // WiFi configuration
-const char* ssid = "SAYANI_IOT";//"VIVA-Router-ADV-LTE";
-const char* password = "00001111";//"VIVA770319";
+const char* ssid = "SAYANI_JIO";//"VIVA-Router-ADV-LTE";
+const char* password = "00011101";//"VIVA770319";
 
 // MQTT configuration
 const char* mqtt_server = "192.168.8.10";
 
 // Min and max distance reading from the sensor
-const int min_distance = 14;
-const int max_distance = 77;
+int min_distance = 15;
+int max_distance = 78;
 
 // OLED
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
@@ -153,6 +153,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
     //if(mqtt_last_message_millis == 0) // for testing ago
     mqtt_last_message_millis = millis();
 
+    // possible new min and max readings
+    if(distance < min_distance) {
+      min_distance = distance;
+    } else if (distance > max_distance) {
+      max_distance = distance;
+    }
+
     int percentage = (distance - min_distance)/(max_distance - min_distance) * 100;
 
     reading = 100 - max(0,min(100,percentage));
@@ -197,7 +204,7 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str())) { // This blocks the thread
       Serial.println("connected");
-      client.subscribe("home/water/test");
+      client.subscribe("waterLevelTopic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
