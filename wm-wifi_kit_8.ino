@@ -75,7 +75,11 @@ void clear(uint8_t symbol) {
 
 // Display water level
 void display_reading() {
-  if(reading == -99 ) {
+  unsigned long current_millis = millis();
+  int secs = (current_millis - mqtt_last_message_millis) / 1000;
+  int mins = max(60, secs) / 60;
+  
+  if(reading == -99 || mins > 30 ) {
     sprintf(water_level_str,"%s", "--");
   } else {
     sprintf(water_level_str,"%d%%", reading); 
