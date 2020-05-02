@@ -157,13 +157,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     //if(mqtt_last_message_millis == 0) // for testing ago
     mqtt_last_message_millis = millis();
 
-    // possible new min and max readings
-    if(distance < min_distance) {
-      min_distance = distance;
-    } else if (distance > max_distance) {
-      max_distance = distance;
-    }
-
     int percentage = (distance - min_distance)/(max_distance - min_distance) * 100;
 
     reading = 100 - max(0,min(100,percentage));
