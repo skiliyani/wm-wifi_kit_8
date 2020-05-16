@@ -25,14 +25,15 @@ int min_distance = 15;
 int max_distance = 78;
 
 // OLED
-//U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
+//U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 unsigned long mqtt_last_conn_millis = 0;
 unsigned long mqtt_last_message_millis = 0;
+unsigned long display_power_save_millis = millis();
 String water_level_percentage = "--";
 char water_level_str[5];
 char last_reading_str[10];
@@ -231,6 +232,14 @@ void loop(void) {
     if (!client.connected()) {
       reconnect();
     }
-    client.loop();
+    client.loop();  
+
+    int secs = (millis() - display_power_save_millis) / 1000;
+    if(secs > 300) u8g2.setPowerSave(1);
+    if(secs > 360) { 
+       u8g2.setPowerSave(0); 
+       display_power_save_millis = millis();
+    }
+    
     delay(500);
 }
