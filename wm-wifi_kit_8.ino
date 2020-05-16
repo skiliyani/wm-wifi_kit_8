@@ -14,7 +14,7 @@
 #define WATER 2
 
 // WiFi configuration
-const char* ssid = "SAYANI_JIO";//"VIVA-Router-ADV-LTE";
+const char* ssid = "SAYANI_WIFI";//"VIVA-Router-ADV-LTE";
 const char* password = "00011101";//"VIVA770319";
 
 // MQTT configuration
@@ -25,14 +25,15 @@ int min_distance = 15;
 int max_distance = 78;
 
 // OLED
-U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
+//U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 unsigned long mqtt_last_conn_millis = 0;
 unsigned long mqtt_last_message_millis = 0;
-signed int reading = -99;
+String water_level_percentage = "--";
 char water_level_str[5];
 char last_reading_str[10];
 
@@ -79,11 +80,12 @@ void display_reading() {
   int secs = (current_millis - mqtt_last_message_millis) / 1000;
   int mins = max(60, secs) / 60;
   
-  if(reading == -99 || mins > 30 ) {
-    sprintf(water_level_str,"%s", "--");
-  } else {
-    sprintf(water_level_str,"%d%%", reading); 
-  }
+  if(mins > 30 ) {
+    water_level_percentage = "--";
+  } 
+  
+  water_level_percentage.toCharArray(water_level_str, 5);
+  
   u8g2.setFontMode(0);
   u8g2.setDrawColor(1);
   //u8g2.setFont(u8g2_font_logisoso28_tr);
@@ -145,22 +147,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+  String msg = "";
   for (int i = 0; i < length; i++) {
+    msg += (char)payload[i];
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
-  String message = String((char *) payload);
-
-  float distance = message.toFloat();
-  if (distance > 0) { // zero readings are errors!
-    //if(mqtt_last_message_millis == 0) // for testing ago
-    mqtt_last_message_millis = millis();
-
-    int percentage = (distance - min_distance)/(max_distance - min_distance) * 100;
-
-    reading = 100 - max(0,min(100,percentage));
-  }
+  water_level_percentage = msg;
+  mqtt_last_message_millis = millis();
 }
 
 // Initialize MQTT
@@ -201,7 +196,7 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str())) { // This blocks the thread
       Serial.println("connected");
-      client.subscribe("waterLevelTopic");
+      client.subscribe("home/terrace/tank/water-level");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
