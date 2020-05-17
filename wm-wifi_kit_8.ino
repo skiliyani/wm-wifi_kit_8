@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <U8g2lib.h>
 #include <PubSubClient.h>
+#include <Ticker.h>
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -25,35 +26,35 @@ int min_distance = 15;
 int max_distance = 78;
 
 // OLED
-//U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
+//U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+Ticker invertTicker;
 
 unsigned long mqtt_last_conn_millis = 0;
 unsigned long mqtt_last_message_millis = 0;
 String water_level_percentage = "--";
 char water_level_str[5];
 char last_reading_str[10];
+uint8_t foreground_color = 1;
+uint8_t background_color = 0;
 
 // Display symbols
 void draw_symbol(uint8_t symbol, uint8_t color) {
   switch(symbol) {
     case WIFI:
-      u8g2.setFontMode(1);
-      u8g2.setDrawColor(color);
+      //u8g2.setDrawColor(color);
       u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-      u8g2.drawGlyph(0, 12, 248);
+      u8g2.drawGlyph(1, 12, 248);
       break;
     case MQTT:
-      u8g2.setFontMode(1);
-      u8g2.setDrawColor(color);
+      //u8g2.setDrawColor(color);
       u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
-      u8g2.drawGlyph(0, 12+2+12, 206);
+      u8g2.drawGlyph(1, 12+2+12, 206);
       break;
     case WATER:
-      u8g2.setFontMode(1);
       u8g2.setDrawColor(color);
       u8g2.setFont(u8g2_font_open_iconic_all_1x_t);
       u8g2.drawGlyph(12+2+12+2, 12, 152);
@@ -70,7 +71,7 @@ void blink(uint8_t symbol) {
   u8g2.sendBuffer(); //immediately
 }
 
-void clear(uint8_t symbol) {
+void clear0(uint8_t symbol) {
   draw_symbol(symbol, 0);
 }
 
@@ -85,11 +86,10 @@ void display_reading() {
   } 
   
   water_level_percentage.toCharArray(water_level_str, 5);
-  
-  u8g2.setFontMode(0);
-  u8g2.setDrawColor(1);
-  //u8g2.setFont(u8g2_font_logisoso28_tr);
-  u8g2.setFont(u8g2_font_logisoso24_tr);
+
+  //u8g2.setDrawColor(2);
+  u8g2.setFont(u8g2_font_logisoso24_tf);
+  //u8g2.setFont(u8g2_font_ncenB14_tf);
   u8g2.drawStr(18,26,water_level_str);
 }
 
@@ -110,7 +110,8 @@ void display_ago() {
   } else {
     sprintf(last_reading_str,"%d %s", mins, "min"); 
   }
-  
+
+  //u8g2.setDrawColor(2);
   u8g2.setFont(u8g2_font_mercutio_basic_nbp_tf);
   u8g2.drawStr(94,12,last_reading_str);
   u8g2.drawStr(94,26,"ago");
@@ -131,7 +132,7 @@ void setup_wifi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    blink(WIFI);
+    //blink(WIFI);
   }
 
   Serial.println("");
@@ -139,7 +140,7 @@ void setup_wifi() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  display(WIFI);
+  //display(WIFI);
 }
 
 // MQTT message handler
@@ -172,6 +173,8 @@ void setup(void) {
   u8g2.begin();
   setup_wifi();
   setup_mqtt();
+
+  invertTicker.attach(900, invert); // invert color every X seconds
 }
 
 // Show emoji - not used now
@@ -207,10 +210,20 @@ void reconnect() {
   }
 }
 
+void invert() {
+  foreground_color = (foreground_color == 1 ? 0 : 1);
+  background_color = (background_color == 1 ? 0 : 1);
+}
+
 // Display symbols, level and ago
 void status() {
     u8g2.clearBuffer();
-    
+    u8g2.setFontMode(1);
+ 
+    u8g2.setDrawColor(background_color);
+    u8g2.drawBox(0, 0, u8g2.getDisplayWidth(), u8g2.getDisplayHeight());
+
+    u8g2.setDrawColor(foreground_color);
     if(WiFi.status() == WL_CONNECTED) {
       display(WIFI);
     }
@@ -218,7 +231,7 @@ void status() {
     if (client.connected()) {
       display(MQTT);
     }
-    
+
     display_reading();
     display_ago();
 
