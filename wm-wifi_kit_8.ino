@@ -25,6 +25,10 @@ const char* mqtt_server = "192.168.8.10";
 int min_distance = 15;
 int max_distance = 78;
 
+// Warning levels
+const int warn_level = 20;
+const int critical_level = 10;
+
 // OLED
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 16, /* clock=*/ 5, /* data=*/ 4);
 //U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
@@ -157,6 +161,27 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   water_level_percentage = msg;
   mqtt_last_message_millis = millis();
+
+  // alarm
+  alarm();
+}
+
+void alarm() {
+  int level = water_level_percentage.toInt();
+  Serial.println(level);
+  if(level > 0) {
+    if(level <= critical_level) {
+       Serial.println("Critical level");
+       tone(D3, 1000);
+       delay(1000);
+       noTone(D3);  
+    } else if(level <= warn_level) {
+       Serial.println("Warning level");
+       tone(D3, 1000);
+       delay(500);
+       noTone(D3); 
+    }
+  }
 }
 
 // Initialize MQTT
