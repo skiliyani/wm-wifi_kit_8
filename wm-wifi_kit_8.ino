@@ -224,7 +224,7 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str())) { // This blocks the thread
       Serial.println("connected");
-      client.subscribe("home/terrace/tank/water-level");
+      client.subscribe("home/monitor/water/level");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
