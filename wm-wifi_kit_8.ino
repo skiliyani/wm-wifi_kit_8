@@ -19,7 +19,7 @@ const char* ssid = "SAYANI_WIFI";//"VIVA-Router-ADV-LTE";
 const char* password = "00011101";//"VIVA770319";
 
 // MQTT configuration
-const char* mqtt_server = "192.168.8.10";
+const char* mqtt_server = "192.168.8.11";
 
 // Min and max distance reading from the sensor
 int min_distance = 15;
